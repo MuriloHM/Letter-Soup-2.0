@@ -1,0 +1,824 @@
+<!doctype html>
+
+<html>
+	<script type="text/javascript" src="loud.json" "Words.json"></script>
+	<head>
+		<meta charset="UTF-8">
+		
+		<title>
+			Letter Soup - 
+		</title>
+	</head>
+	 <body onload="initialize();" > <!--onresize="resize_canvas(); Comentei essa parte-->
+		<canvas id="myCanvas" width="800" height="450" style="border:1px solid #000000;">
+			Seu browser não suporta canvas/HTML5.
+		</canvas>
+	</body>
+</html>
+
+		
+	<script>
+	var canvas = document.getElementById("myCanvas");	    	
+	var drawer = canvas.getContext("2d");
+	var rect;
+	var i, j;
+	var hold = [];
+	var planoDeFundo;
+	var respostas = [];
+	var respPrato = []; 
+	var letras = [];
+	var circulos;
+	var indice = null; 
+	var tempoMax;
+	var frameRate = 0;
+	var chances;
+	var chancesGastas;
+	var playOneTime = 0;
+	var globalTimeMax;
+	var score = 0;
+	var highscore = 0;	
+
+	var showHighscore = false;
+
+	var soundTimer = new Audio('sources/sounds/sound_effects/soundTimer.mp3');
+	soundTimer.loop = true;	
+
+	var soundMusic = new Audio('sources/sounds/music/song.mp3');
+	soundMusic.loop = true;
+
+	var soundWin = new Audio('sources/sounds/sound_effects/soundWin.wav');
+	var soundNextDay = new Audio('sources/sounds/sound_effects/soundNextDay.wav');
+	var soundPop = new Audio('sources/sounds/sound_effects/soundPop.flac');
+	var soundCrybaby = new Audio('sources/sounds/sound_effects/soundCrybaby.mp3');
+	
+	var timerImage;
+	timerImage = new Image();
+	timerImage.src = "./images/timer.png";//mudado diretório,então de source/image/ passa para ./images
+	var timeAngle = 2*Math.PI;
+	var timerCircle = 3*Math.PI;	
+	
+	var respCerta = [];
+	var tempoAcerto;
+	var chanceImg = new Image();
+	var chanceGastaImg = new Image();
+	//chanceImg.src = 'sources/images/Chance01.png';
+	//chanceGastaImg.src = 'sources/images/Chance00.png';
+	
+	chanceImg.src = './images/baby1.png'; //mudado diretório,então de source/image/ passa para ./images
+	chanceGastaImg.src = './images/baby21.png'; //mudado diretório,então de source/image/ passa para ./images
+	var tips = ["Do you _ _ _ _ the post?", "We _ _ _ _ _ in the morning.", "It doesn't _ _ _ well."];
+	var imgTips = [];
+	var soundTips = [];
+	imgTips[0] = new Image();
+	imgTips[0].src = "./images/img_tip/ImgTip_Like.png"; //mudado diretório,então de source/image/ passa para ./images
+	imgTips[1] = new Image();
+	imgTips[1].src = "";
+	imgTips[2] = new Image();
+	imgTips[2].src = "./images/img_tip/ImgTip_Fit.png";//mudado diretório,então de source/image/ passa para ./images
+	soundTips[0] = new Audio('sources/sounds/sound_tip/SoundTip_Carry.mp3');
+	
+	var gameStatus;
+	const IN_GAME = "in game";
+	const GAME_OVER = "GAME OVER";
+	const GAME_WIN = "WIN";
+	var day;
+	var gameMessage = [];
+	const GAME_MESSAGE_RADIUS = 30;
+	const GAME_SCORE_RADIUS = 15;
+	var gameMessageRect;
+	var globalWordTips = [];
+	var imgPlate;
+	const SCALE_PLATE = 1.07;
+	
+	var gameScreen, gameBackground;
+
+	var backgroundTablecloth;
+	backgroundTablecloth = new Image();
+	backgroundTablecloth.src = "./images/screens/backgroundTablecloth00.jpg";//mudado diretório,então de source/image/ passa para ./images
+
+	//function resize_canvas(){
+		// if (canvas.width  < window.innerWidth) {
+        //     canvas.width  = window.innerWidth - window.innerWidth/20;
+        //     }
+		// if (canvas.height < window.innerHeight) {
+		// 	canvas.height = window.innerHeight - window.innerHeight/20;
+		// }
+
+		// var height = window.innerHeight;
+
+		// height = height - height/20;
+
+		// var ratio = canvas.width / canvas.height;
+		// var width = height * ratio;
+
+		// canvas.style.width = width + 'px';
+		// canvas.style.height = height + 'px';
+	//}	
+		
+	
+	function loud(){
+		var temp = JSON.parse(data);
+		
+		for(var i =0; i < temp.length; i++){
+			globalWordTips[i] = new WordTip(temp[i].word, temp[i].text, temp[i].imageTip, temp[i].sound);
+		}
+	}
+	
+	window.addEventListener('mousemove',function (mouse) {
+		document.getElementById("myCanvas").onmousemove;  
+		borda = canvas.getBoundingClientRect();
+		mouseStates.x = mouse.clientX-borda.left;
+		mouseStates.y = mouse.clientY-borda.top;
+		
+		hold.forEach(function (letra) {
+		letra.centro.x = mouseStates.x;
+		letra.centro.y = mouseStates.y;
+		});
+	});
+	window.addEventListener('mousedown',function (mouse) {
+		document.getElementById("myCanvas").onmousedown;
+		borda = canvas.getBoundingClientRect();
+		mouseStates.clicked = true;
+		mouse = new Circle(mouse.clientX-borda.left, mouse.clientY-borda.top, 0, 0);
+		letras.forEach(function (letra, index) {
+			if (letra.intersect(mouse)) {
+				hold = [letra];
+				indice = index;
+				console.log(hold[0].text);
+				letra.centro.x = mouseStates.x;
+				letra.centro.y = mouseStates.y;
+			}
+		});
+	});
+	
+	window.addEventListener('mouseup',function (mouse){
+		document.getElementById("myCanvas").onmouseup;
+		mouseStates.clicked = false;
+		letraNoCentro();
+		centralizaLetra();
+		verificaResposta();
+		
+		indice = null;
+		hold = [];
+	});
+	
+	function Rectangle(x, y, width, height, color){
+		this.x = x;
+		this.y = y;
+		this.width = width;
+		this.height = height;
+		this.color = color;
+		
+		this.draw = function(){
+			drawer.fillStyle = this.color;
+			drawer.fillRect(this.x, this.y, this.width, this.height);
+		}
+	}
+	
+	function Circle(x, y, radius, color){
+		this.x = x;
+		this.y = y;
+		this.radius = radius;
+		this.color = color;
+		
+		this.draw = function (){
+			drawer.fillStyle = this.color;
+			drawer.beginPath();
+			drawer.arc(this.x, this.y, this.radius, 0, 2*Math.PI);
+			drawer.fill();
+		}
+		
+		this.intersect = function (circle){
+			return Math.sqrt(Math.pow(this.x - circle.x, 2) + Math.pow(this.y - circle.y, 2)) <= this.radius + circle.radius;
+		}
+		
+	}
+	
+	function Letter(x, y, radius, color, text){
+		this.x = x;
+		this.y = y;
+		this.radius = radius;
+		this.color = color;
+		this.text = text;
+		this.image = new Image();
+		this.vx = 0;
+		this.vy = 0;
+		this.centro = {
+			x: this.x,
+			y: this.y
+		};
+		if(!(text==" " || text=="")){
+			this.image.src = "./images/letters/"+this.text.toLowerCase() + ".png"; //mudado diretório,então de source/image/ passa para ./images
+			}
+		this.claro = false;
+		
+		this.draw = function (){
+			
+			
+			if(!(text==" " || text=="")){
+				drawer.save(); 
+					drawer.drawImage(this.image, this.claro * 52,0, 52, 52,
+						this.x - this.radius * 1.15, this.y - this.radius * 1.15, this.radius * 2.3, this.radius * 2.3); //desenha a imagem
+				drawer.restore(); 
+			}
+		}
+		
+		this.intersect = function (circle){
+			return Math.sqrt(Math.pow(this.x - circle.x, 2) + Math.pow(this.y - circle.y, 2)) <= this.radius + circle.radius;
+		}
+	}
+	
+	function WordTip(word, text, urlImage, urlSound){
+		this.word = word;
+		this.text = text;
+		this.urlImage = urlImage;
+		this.urlSound = urlSound;
+	}
+	
+	
+	function getRndInteger(min, max) {
+		return Math.floor(Math.random() * (max - min) ) + min;
+	}
+	
+	
+	
+	function lettersGame(respostas, letras){
+		console.log("letras partida");
+		for (i=0; i<respostas.length; i++){
+			respostas[i] = respostas[i].toUpperCase();
+			for (j=0; j<respostas[i].length; j++){
+				var letragame = new Letter (getRndInteger(circulos[1].x - circulos[1].radius, circulos[1].x + circulos[1].radius), getRndInteger(circulos[1].y - circulos[1].radius, circulos[1].y + circulos[1].radius), 20, "#ffb380", respostas[i].charAt(j));
+				while (!letragame.intersect(circulos[1]) || letragame.intersect(circulos[2])) {
+					letragame.x = getRndInteger(circulos[1].x - circulos[1].radius, circulos[1].x + circulos[1].radius);
+					letragame.centro.x = letragame.x;
+					letragame.y = getRndInteger(circulos[1].y - circulos[1].radius, circulos[1].y + circulos[1].radius);
+					letragame.centro.y = letragame.y;
+				}
+				letras.push(letragame);
+			}
+		}
+	}
+	
+	
+	function letraNoCentro(){
+		if(hold.length>0){
+			var tem = respPrato.indexOf(indice) > -1; 
+			var colidiu = circulos[2].intersect(hold[0]);			
+			
+			if(tem){
+				respPrato.splice(respPrato.indexOf(indice),1); 
+				//soundPop.play();
+			}
+			if(colidiu){
+				respPrato.push(indice); 
+				soundPop.play();
+			}
+		}
+	}
+	
+	function verificaResposta(){
+		var i;
+		var resp = "";
+		for(i = 0; i < respPrato.length; i++){
+			resp = resp+letras[respPrato[i]].text;
+		}
+		for(i = 0; i < respostas.length; i++){
+			if(respostas[i] == resp){
+				console.log("resposta correta: "+resp+"\n---Vetor: "+respPrato.toString());
+				respostas.splice(i, 1)
+				iniciaAcerto();
+				soundWin.play();
+				score = score +10;
+			}
+		}
+	}
+	
+	function iniciaAcerto(){
+		var i;
+		respCerta = respPrato;
+		respPrato = [];
+		tempoMax=timeChance();
+		frameRate=0;
+		tempoAcerto = 0;
+		for(i = 0; i < respCerta.length; i++){
+			letras[respCerta[i]].claro = true;
+		}
+	}
+	
+	function deleyAcerto(){
+		if(respCerta.length > 0){
+			tempoAcerto++;
+			if(tempoAcerto > 60){
+				removeLetras();
+			}
+		}
+	}
+	
+	function removeLetras(){
+		var i;
+		respCerta.sort(function(a, b){return b - a});
+		for(i = 0; i < respCerta.length; i++){
+			letras.splice(respCerta[i], 1);
+		}
+		respCerta=[];
+	}
+	
+	function centralizaLetra(){
+		if(respPrato.length > 0){
+			var i,
+				raio = letras[respPrato[0]].radius;
+			for(i=0; i<respPrato.length; i++){
+				letras[respPrato[i]].centro.x = circulos[2].x-respPrato.length*raio+raio+2*raio*i;
+				letras[respPrato[i]].centro.y = circulos[2].y;
+			}
+		}
+	}
+	
+	function timeChance(){
+		var timeMin = 15;
+		var timeMax = 60;
+		var timeDecrease = 3;
+		var time;
+		if(day<1 || day == undefined) day = 1;
+		time = timeMax - timeDecrease * (day-1);
+		if(time < timeMin)time = timeMin;
+		return time;
+	}
+	
+	function textInCenter(text){
+		if(text.length > 0){
+			var i,raio = text[0].radius;
+			for(i=0; i<text.length; i++){
+				text[i].x = circulos[2].x-text.length*raio+raio+2*raio*i;
+				text[i].y = circulos[2].y;
+			}
+		}
+	}
+
+	function textInBottom(text){
+		if(text.length > 0){
+			var i,raio = text[0].radius /1.5;			
+			for(i=0; i<text.length; i++){
+				text[i].x = circulos[2].x-text.length*raio+raio+2*raio*i - 290;
+				text[i].y = circulos[2].y - 125;
+			}
+		}
+	}
+	
+	function addLetters(word, letters, radius){
+		var i;
+		word = word.toUpperCase();
+		for (i=0; i<word.length; i++){
+				letters.push(new Letter (getRndInteger(400, 90), getRndInteger(315, 90), radius, "#ffb380", word.charAt(i)));
+		}
+	}
+		
+	function rectGameMessage(text, rect){
+		if(text.length>0){
+			rect.x = text[0].x - text[0].radius * 1.1;
+			rect.y = text[0].y - text[0].radius * 1.1;
+			rect.width = text[text.length-1].x - rect.x + text[text.length-1].radius * 1.1;
+			rect.height = text[0].radius * 2.2;
+		}else{
+			rect.x = rect.y = rect.width = rect.height = 0;
+		}
+	}
+	
+	function usefulTip(selectedeTips){
+		var i;
+		for(i=0;i<3;i++){
+			respostas[i] = globalWordTips[selectedeTips[i]].word;
+			tips[i] = globalWordTips[selectedeTips[i]].text;
+			imgTips[i].src = "./images/img_tip/"+globalWordTips[selectedeTips[i]].urlImage; //mudado diretório,então de source/image/ passa para ./images
+			soundTips[i] = new Audio('sources/sounds/sound_tip/' + globalWordTips[selectedeTips[i]].urlSound); //insere o audio de acordo com a palavra
+		}
+	}
+	
+	function randomizeTips(){
+		var nunTips = 3;
+		var tipsReference = [];
+		var i, j, repeatedNun;
+		for(i=0; i < nunTips; i++){
+			do{
+				tipsReference[i] = getRndInteger(0,globalWordTips.length);
+				repeatedNun=false;
+				for(j=0; j<i; j++){
+					repeatedNun = repeatedNun || (tipsReference[i]==tipsReference[j]);
+				}
+			}while(repeatedNun)
+		}
+		return tipsReference;
+	}
+	
+	function soundTipsPlay(){ 
+	
+		if (tempoMax<(3*globalTimeMax/4) && tempoMax>((3*globalTimeMax/4)-2)){
+			if(playOneTime<1){
+				soundTips[0].play();
+				playOneTime++;
+			}
+		} else if (tempoMax<(2*globalTimeMax/4) && tempoMax>((2*globalTimeMax/4)-2)){
+			if(playOneTime<2){
+				soundTips[1].play();
+				playOneTime++;
+			}
+		} else if (tempoMax<(globalTimeMax/4) && tempoMax>((globalTimeMax/4)-2)){
+			if(playOneTime<3){
+				soundTips[2].play();
+				playOneTime++;
+			}
+		}
+	}
+	
+	function setDayStates(){
+		day++;
+		usefulTip(randomizeTips());
+		letras = [];
+		lettersGame(respostas, letras);
+		respPrato = [];
+		chances = 3;
+		chancesGastas = 3;
+		gameStatus = IN_GAME;
+		gameMessage = [];
+		rectGameMessage(gameMessage, gameMessageRect);
+		tempoMax = timeChance();
+		globalTimeMax = timeChance();
+	}
+	
+	function drawChronometer(){
+	
+		drawer.beginPath(); 
+		drawer.fillStyle = "#c82124"; 
+		
+		drawer.drawImage(timerImage, 730,0, 70, 70); 		 
+		
+		drawer.moveTo(765, 8); 
+		drawer.lineTo(765, 40); 
+			
+		timeAngle = 	(2 - timerCircle) *Math.PI; 
+		
+		if(timerCircle!=0) 
+			drawer.arc(765,40,25, 1.5*Math.PI -timeAngle,1.5 * Math.PI + 0.001,true); 
+		else drawer.arc(765,40,25, 1.5*Math.PI,1.5 * Math.PI,false); 
+		
+		
+		drawer.lineTo(765,39);
+		
+		drawer.fill();
+	}
+
+	function drawScore(){
+		gameMessage = []
+		addLetters("SCORE "+score, gameMessage, GAME_SCORE_RADIUS);
+		textInBottom(gameMessage);
+		rectGameMessage(gameMessage, gameMessageRect);
+	}
+
+	function drawHighscore(){
+		if (localStorage.getItem("highscore")!=null){
+		highscore = parseInt(localStorage.getItem("highscore"),10);
+		}
+
+		gameMessage = []
+		addLetters("HIGHSCORE "+highscore, gameMessage, GAME_MESSAGE_RADIUS);
+		textInCenter(gameMessage);
+		rectGameMessage(gameMessage, gameMessageRect);
+	}
+	
+	function update(){
+		
+		soundTipsPlay();
+		soundTimer.play();
+		soundMusic.play();			
+	
+
+		if(highscore !== null){
+			if (score > highscore) {
+				//highscore = score;
+				localStorage.setItem("highscore", score);
+				//score = parseInt(localStorage.getItem("highscore"),10);      
+			}
+		}
+		else{
+			localStorage.setItem("highscore", score);
+			//score = parseInt(localStorage.getItem("highscore"),10);
+		}		
+
+		if(gameStatus == IN_GAME){
+			for (i = 0; i<letras.length; i++){
+				if (circulos[2].intersect(letras[i])){
+					letras[i].color = "#ff6600";
+				}
+				else {
+					letras[i].color = "#ffb380";
+				}
+			}
+		
+			deleyAcerto();			
+			
+			frameRate++;
+			if(frameRate%60 == 0){				
+				
+				if(respostas.length > 0){
+					tempoMax--;
+					
+					if(tempoMax<0){
+						tempoMax=timeChance();
+						chances--;
+						soundCrybaby.play();
+						playOneTime=0;
+					}
+				}
+				
+				if(0>=chances){
+					gameStatus = GAME_OVER;
+					tempoMax = 3;
+					gameMessage = []
+					addLetters(GAME_OVER, gameMessage, GAME_MESSAGE_RADIUS);
+					textInCenter(gameMessage);
+					rectGameMessage(gameMessage, gameMessageRect);
+				}
+				if(respostas.length <1 && tempoAcerto > 60){
+					gameStatus = GAME_WIN;
+					soundNextDay.play();
+					tempoMax = 3;
+					gameMessage = []
+					addLetters("DAY "+day/*GAME_WIN*/, gameMessage, GAME_MESSAGE_RADIUS);
+					textInCenter(gameMessage);
+					rectGameMessage(gameMessage, gameMessageRect);
+				}									
+				else {drawScore();}
+			}
+
+				timerCircle = ((tempoMax*100/60)/100) * 2;
+				
+				
+		}
+		else if(gameStatus == GAME_OVER || gameStatus == GAME_WIN){
+			frameRate++;
+			if(frameRate%60 == 0){
+				tempoMax--;
+				
+				if(tempoMax<0){
+					if(gameStatus == GAME_OVER){
+						location.reload(); 
+					}
+					if(gameStatus == GAME_WIN){
+						setDayStates();
+					}
+				}
+			}
+		}
+		
+		letras.forEach(letra => {
+			letra.vx = (letra.centro.x - letra.x) / 5;
+			letra.vy = (letra.centro.y - letra.y) / 5;
+			letra.x += letra.vx;
+			letra.y += letra.vy;
+		});
+	}
+	
+	function draw(){			
+
+		planoDeFundo.draw();
+		drawer.drawImage(backgroundTablecloth, 0, 0);				
+		
+		drawer.drawImage(imgPlate,
+			circulos[0].x-imgPlate.width/2*SCALE_PLATE,
+			circulos[0].y-imgPlate.height/2*SCALE_PLATE,
+			imgPlate.width*SCALE_PLATE,
+			imgPlate.height*SCALE_PLATE
+		);
+		for(i = 0; i<circulos.length; i++){
+			circulos[i].draw();
+		}
+		
+		for(i = 0; i<letras.length; i++){
+			letras[i].draw();
+		}		
+		
+		drawChronometer();
+				
+		drawer.fillStyle = "#000000";
+		drawer.textAlign = "center";
+		if(gameStatus == IN_GAME){
+			drawer.font = "30px Arial";
+		}
+		for(i = 0; i < chancesGastas; i++) {
+			drawer.drawImage(chanceGastaImg, 5 + i * 70, 5, 70, 70);
+		}
+		for(i = 0; i < chances; i++) {
+			drawer.drawImage(chanceImg, 5 + i * 70, 5, 70, 70);
+		}
+		
+		drawer.font = "15px Arial";
+		drawer.textAlign = "right";
+		for(i = 0; i < tips.length; i++) {
+			drawer.fillText(tips[i], 795, 170 + i * 120);
+		}
+		
+		for(i = 0; i < imgTips.length; i++) {
+			drawer.drawImage(imgTips[i], 630, 70 + i * 120, 70, 70);
+		}
+		
+		gameMessageRect.draw();
+		for(i = 0; i<gameMessage.length; i++){
+			gameMessage[i].draw();
+		}
+	}
+	
+	function loop(){
+		useScreen.update();
+		useScreen.draw();
+		
+	}
+	
+	function initialize(){
+		
+		//resize_canvas();
+		loud();
+		
+		planoDeFundo = new Rectangle(0,0,canvas.width,canvas.height, "#ffffff");
+		
+		imgPlate = new Image();
+		imgPlate.src = "./images/prato1.png";//mudado diretório,então de source/image/ passa para ./images
+		
+		//imgPlate.src = "sources/images/plate.png";
+		
+		// circulos = [
+		// 	new Circle(400, 225, 200, "rgba(0,153,255,0.0)"), 
+		// 	new Circle(400, 225, 180, "rgba(255,133,51,0.88"), 
+		// 	new Circle(400, 225, 90, "rgba(230,92,0,0.2")  
+		// ];
+		
+
+		circulos = [
+			new Circle(400, 225, 200, "rgba(43,65,70,0.0)"), 
+			new Circle(400, 225, 180, "rgba(75,120,130,0.0)"), 
+			new Circle(400, 225, 90, "rgba(43,65,70,0.0)")  
+		];		
+		
+		day = 0;
+		gameMessageRect = new Rectangle(0,0,0,0,"rgba(127,127,127,0.5)");
+		
+		setDayStates();
+		
+		mouseStates = new MouseStates();
+		
+		loudButtons();
+		loudBackgrounds();
+		loudScreens();
+		
+		useScreen = scrMainMenu;
+		
+		update();
+		draw();
+		setInterval(loop, 100/6);
+	}
+
+	var mouseStates;
+	
+	function MouseStates(){
+		this.x = 0;
+		this.y = 0;
+		this.clicked = false;
+	}
+	
+	var useScreen;
+	
+	var imgBtnCredits, imgBtnScore, imgBtnStart, imgBtnReturn;
+	
+	var btnCredits, btnScore, btnStart, btnReturn;
+	
+	var imgBcgMainMenu, imgBcgScore, imgBcgCredtis;
+	
+	var bcgMainMenu, bcgScore, bcgCredtis;
+	
+	var scrMainMenu, scrScore, scrCredtis;
+	
+	function loudButtons(){
+		imgBtnCredits = new Image();
+		imgBtnCredits.src = "./images/buttons/buttonCredits.png";//mudado diretório,então de source/image/ passa para ./images
+	
+		imgBtnReturn = new Image();
+		imgBtnReturn.src = "./images/buttons/buttonReturn.png";//mudado diretório,então de source/image/ passa para ./images
+	
+		imgBtnScore = new Image();
+		imgBtnScore.src = "./images/buttons/buttonScore.png";//mudado diretório,então de source/image/ passa para ./images
+	
+		imgBtnStart = new Image();
+		imgBtnStart.src = "./images/buttons/buttonStart.png";//mudado diretório,então de source/image/ passa para ./images
+		
+		btnStart = new Button(imgBtnStart, new Rectangle(600,50, 135, 71, "#FFFFFF"), null);
+		btnCredits = new Button(imgBtnCredits, new Rectangle(600,150, 167, 65, "#FFFFFF"), null)
+		btnScore = new Button(imgBtnScore, new Rectangle(600,250, 135, 65, "#FFFFFF"), null)
+		btnReturn = new Button(imgBtnReturn, new Rectangle(20, 300, 125, 125, "#FFFFFF"), null)
+		btnReturn.inerUpdate = function(){showHighscore=false};
+		btnStart.inerUpdate = function(){score=0;day=0;setDayStates();};
+		btnScore.inerUpdate = function(){			
+			drawer.strokeText("Score: " + score, window.innerWidth/2, window.innerHeight/2);			
+			showHighscore=true;
+			if(showHighscore) {						
+				drawHighscore();
+				showHighscore=false;							
+			}
+		};		
+	}
+	
+	function loudBackgrounds(){
+		imgBcgMainMenu = new Image();
+		imgBcgMainMenu.src = "./images/screens/screenMenu.png";//mudado diretório,então de source/image/ passa para ./images
+		
+		imgBcgScore = new Image();
+		imgBcgScore.src = "./images/screens/screenScore.png";//mudado diretório,então de source/image/ passa para ./images
+		
+		imgBcgCredtis = new Image();
+		imgBcgCredtis.src = "./images/screens/screenCredits.png";//mudado diretório,então de source/image/ passa para ./images
+		
+		bcgMainMenu = new Background(imgBcgMainMenu);
+		bcgScore = new Background(imgBcgScore);
+		bcgCredtis = new Background(imgBcgCredtis);
+		
+		gameBackground = {
+			update: update,
+			draw: draw
+		}
+	}
+	
+	function loudScreens(){
+		scrMainMenu = new Screen(bcgMainMenu, [btnStart, btnCredits, btnScore]);
+		scrScore = new Screen(bcgScore, [btnReturn]);
+		scrCredtis = new Screen(bcgCredtis, [btnReturn]);
+		gameScreen = new Screen(gameBackground, [btnReturn]);
+		
+		btnStart.link = gameScreen;
+		btnCredits.link = scrCredtis;
+		btnScore.link = scrScore;
+		btnReturn.link = scrMainMenu;
+	}
+	
+	function Button(image, rect, link){
+		this.image = image;
+		this.rect = rect;
+		this.link = link;
+		this.isMouseIn = false;
+		this.isCliked = false;
+		this.inerUpdate = null;
+		this.inerDraw = null;
+		
+		this.clicked = function(){
+			useScreen = link;
+		}
+		this.draw = function(){
+			drawer.save(); 
+				drawer.drawImage(this.image,
+				this.image.width/2 * this.isMouseIn, 0, this.image.width/2, this.image.height,
+				this.rect.x, this.rect.y, this.rect.width, this.rect.height);			
+			drawer.restore(); 
+			if(this.inerDraw != null)this.inerDraw();
+		}
+		this.update = function(){
+			this.isMouseIn = !(mouseStates.x<this.rect.x || mouseStates.x>(this.rect.width+this.rect.x) ||
+				mouseStates.y<this.rect.y || mouseStates.y>(this.rect.height+this.rect.y));
+			this.isCliked = this.isMouseIn && mouseStates.clicked;
+			if(this.isCliked){
+				if(this.inerUpdate != null){this.inerUpdate()};				
+				useScreen = this.link;
+			}
+		}
+	}
+	
+	function Background(image){
+		this.image = image;
+		
+		this.draw = function(){
+			drawer.drawImage(backgroundTablecloth, 0, 0);
+			drawer.save(); 
+				drawer.drawImage(this.image, 0, 0, this.image.width, this.image.height); 
+			drawer.restore();
+		}
+		this.update = function(){
+		
+		}
+	}
+	
+	function Screen(background, buttons){
+		this.background = background;
+		this.buttons = buttons;
+
+		this.draw = function(){
+			this.background.draw();			
+			var i;
+			for(i=0; i<this.buttons.length; i++){
+				buttons[i].draw();
+			}
+		}
+		this.update = function(){
+			this.background.update();
+			var i;
+			for(i=0; i<this.buttons.length; i++){
+				buttons[i].update();
+			}
+		}
+	}
+</script>
