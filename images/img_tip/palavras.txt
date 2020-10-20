@@ -1,0 +1,13 @@
+sunday
+monday
+tuesday
+wednesday
+thursday
+friday
+saturday
+calendar
+play
+listen
+love*
+work
+increase (salary)
