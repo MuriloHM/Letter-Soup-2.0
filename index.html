@@ -124,8 +124,7 @@
 		}
 	}
 	
-	window.addEventListener('mousemove',function (mouse) {
-		document.getElementById("myCanvas").onmousemove;  
+	document.getElementById("myCanvas").onmousemove = function (mouse) {
 		borda = canvas.getBoundingClientRect();
 		mouseStates.x = mouse.clientX-borda.left;
 		mouseStates.y = mouse.clientY-borda.top;
@@ -134,9 +133,9 @@
 		letra.centro.x = mouseStates.x;
 		letra.centro.y = mouseStates.y;
 		});
-	});
-	window.addEventListener('mousedown',function (mouse) {
-		document.getElementById("myCanvas").onmousedown;
+	};
+	
+	document.getElementById("myCanvas").onmousedown = function (mouse) {
 		borda = canvas.getBoundingClientRect();
 		mouseStates.clicked = true;
 		mouse = new Circle(mouse.clientX-borda.left, mouse.clientY-borda.top, 0, 0);
@@ -149,10 +148,9 @@
 				letra.centro.y = mouseStates.y;
 			}
 		});
-	});
+	};
 	
-	window.addEventListener('mouseup',function (mouse){
-		document.getElementById("myCanvas").onmouseup;
+	document.getElementById("myCanvas").onmouseup = function () {
 		mouseStates.clicked = false;
 		letraNoCentro();
 		centralizaLetra();
@@ -160,7 +158,8 @@
 		
 		indice = null;
 		hold = [];
-	});
+	};
+	
 	
 	function Rectangle(x, y, width, height, color){
 		this.x = x;
